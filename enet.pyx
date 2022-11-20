@@ -205,36 +205,9 @@ PEER_STATE_DISCONNECTING = ENET_PEER_STATE_DISCONNECTING
 PEER_STATE_ACKNOWLEDGING_DISCONNECT = ENET_PEER_STATE_ACKNOWLEDGING_DISCONNECT
 PEER_STATE_ZOMBIE = ENET_PEER_STATE_ZOMBIE
 
-ENET_CRC32 = 1
-
-cdef class Address
-
-cdef class Socket:
-    """
-    Socket (int socket)
-
-    DESCRIPTION
-
-        An ENet socket.
-
-        Can be used with select and poll.
-    """
-
-    cdef ENetSocket _enet_socket
-
-    def send(self, Address address, data):
-        cdef ENetBuffer buffer
-        data = data if isinstance(data, bytes) else data.encode()
-
-        buffer.data = <char*>data
-        buffer.dataLength = len(data)
-
-        cdef int result = enet_socket_send(self._enet_socket,
-            &address._enet_address, &buffer, 1)
-        return result
-
-    def fileno(self):
-        return self._enet_socket
+cpdef enum ChecksumType:
+    ENET_NONE = 0
+    ENET_CRC32 = 1
 
 cdef class Address:
     """
@@ -312,6 +285,33 @@ cdef class Address:
 
         def __set__(self, value):
             self._enet_address.port = value
+
+cdef class Socket:
+    """
+    Socket (int socket)
+
+    DESCRIPTION
+
+        An ENet socket.
+
+        Can be used with select and poll.
+    """
+
+    cdef ENetSocket _enet_socket
+
+    def send(self, Address address, data):
+        cdef ENetBuffer buffer
+        data = data if isinstance(data, bytes) else data.encode()
+
+        buffer.data = <char*>data
+        buffer.dataLength = len(data)
+
+        cdef int result = enet_socket_send(self._enet_socket,
+            &address._enet_address, &buffer, 1)
+        return result
+
+    def fileno(self):
+        return self._enet_socket
 
 cdef class Packet:
     """
@@ -863,7 +863,7 @@ cdef class Host:
     cdef object _interceptCallback
     cdef object __weakref__
 
-    cdef int _checksum
+    cdef ChecksumType _checksum
 
     def __init__ (self, Address address=None, peerCount=0, channelLimit=0,
         incomingBandwidth=0, outgoingBandwidth=0):
@@ -876,7 +876,7 @@ cdef class Host:
         if not self._enet_host:
             raise MemoryError("Unable to create host structure!")
         self.dealloc = True
-        self._checksum = 0
+        self._checksum = ChecksumType.ENET_NONE
 
         global host_static_instances
         host_static_instances[<uintptr_t>self._enet_host] = self
@@ -1070,11 +1070,11 @@ cdef class Host:
     property checksum:
         def __get__(self):
             return self._checksum
-        def __set__(self, value):
+        def __set__(self, ChecksumType value):
             if value is None:
                 self._enet_host.checksum = NULL
             else:
-                if value == ENET_CRC32:
+                if value == ChecksumType.ENET_CRC32:
                     self._enet_host.checksum = enet_crc32
             self._checksum = value
 

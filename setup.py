@@ -25,7 +25,7 @@ define_macros = [('HAS_POLL', None),
 libraries = []
 
 if sys.platform == 'win32':
-    define_macros.extend([('WIN32', None)])
+    define_macros.extend([('WIN32', None), ("_WINSOCK_DEPRECATED_NO_WARNINGS", None)])
     libraries.extend(['ws2_32', 'Winmm'])
 
 if sys.platform != 'darwin':
@@ -34,7 +34,7 @@ if sys.platform != 'darwin':
 ext_modules = [
     Extension(
         "enet",
-        extra_compile_args=["-O3"],
+        extra_compile_args=["-O3"] if not sys.platform == 'win32' else [],
         sources=source_files,
         include_dirs=["enet/include/"],
         define_macros=define_macros,
